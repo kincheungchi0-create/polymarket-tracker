@@ -1,0 +1,16 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/kalshi/:match*",
+            "destination": "https://api.elections.kalshi.com/:match*"
+        },
+        {
+            "source": "/api/polymarket/:match*",
+            "destination": "https://gamma-api.polymarket.com/:match*"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}
