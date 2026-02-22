@@ -53,30 +53,73 @@ function App() {
     return `${(num * 100).toFixed(1)}%`;
   };
 
-  const getPolyYesProb = (event) => {
+  const OptionsDisplay = ({ options }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem', width: '100%' }}>
+      {options.map((opt, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.9rem' }}>
+          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '0.5rem' }}>{opt.label}</span>
+          <span style={{ fontWeight: 600 }}>{formatProb(opt.prob)}</span>
+          {opt.change !== null && opt.change !== undefined && opt.change !== 0 && (
+            <span style={{ color: opt.change > 0 ? '#4ade80' : '#f87171', width: '60px', textAlign: 'right', fontSize: '0.8rem', alignSelf: 'center' }}>
+              {opt.change > 0 ? '+' : ''}{(opt.change * 100).toFixed(1)}%
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  const getPolyOptions = (event) => {
+    let options = [];
     try {
-      if (event?.markets?.[0]?.outcomePrices) {
-        return event.markets[0].outcomePrices[0];
+      if (event?.markets?.length > 1) {
+        event.markets.forEach(m => {
+          let price = 0;
+          if (m.outcomePrices) {
+            const parsed = JSON.parse(m.outcomePrices);
+            price = parsed[0] || m.lastTradePrice || 0;
+          }
+          options.push({
+            label: m.groupItemTitle || m.question || "Yes",
+            prob: parseFloat(price) || 0,
+            change: m.oneDayPriceChange || 0
+          });
+        });
+      } else if (event?.markets?.length === 1) {
+        const m = event.markets[0];
+        const outcomes = m.outcomes ? JSON.parse(m.outcomes) : ["Yes"];
+        const prices = m.outcomePrices ? JSON.parse(m.outcomePrices) : [m.lastTradePrice || 0];
+        outcomes.forEach((out, i) => {
+          if (outcomes.length > 2 && out === "No") return; // Optional: skip No if multi-choice
+          options.push({
+            label: out,
+            prob: parseFloat(prices[i]) || 0,
+            change: i === 0 ? (m.oneDayPriceChange || 0) : null
+          });
+        });
+      } else if (event?.outcomePrices) {
+        const prices = JSON.parse(event.outcomePrices);
+        options.push({ label: "Yes", prob: parseFloat(prices[0]) || 0, change: event.oneDayPriceChange || 0 });
       }
-      if (event?.outcomePrices) {
-        const parsed = JSON.parse(event.outcomePrices);
-        return parsed[0];
-      }
-    } catch (e) {
-      console.error("Parse error for outcomePrices", event.outcomePrices);
-    }
-    return null;
+    } catch (e) { }
+    options.sort((a, b) => b.prob - a.prob);
+    return options.slice(0, 3);
   };
 
-  const getKalshiYesProb = (market) => {
+  const getKalshiOptions = (market) => {
     let priceCents = market?.yes_bid;
     if (priceCents === undefined || priceCents === 0) {
       priceCents = market?.last_price;
     }
+    let prob = 0;
     if (priceCents !== undefined && priceCents !== null) {
-      return (priceCents / 100).toString();
+      prob = priceCents / 100;
     }
-    return null;
+    let change = null;
+    if (market?.previous_yes_bid !== undefined && market?.yes_bid !== undefined) {
+      change = (market.yes_bid - market.previous_yes_bid) / 100;
+    }
+    return [{ label: "Yes", prob, change }];
   };
 
   const loadPolyTrending = async () => {
@@ -89,24 +132,23 @@ function App() {
     if (Array.isArray(data)) setKalshiTrending(data);
   };
 
-  const checkAlerts = (data, getProbFn, idField) => {
+  const checkAlerts = (data, getOptionsFn, idField) => {
     const newAlerts = { ...alerts };
     let soundPlayed = false;
 
     data.forEach(event => {
       const id = event[idField];
-      const currentProb = getProbFn(event);
-      if (currentProb !== null) {
-        const currentVal = parseFloat(currentProb);
+      const opts = getOptionsFn(event);
+      if (opts.length > 0) {
+        const topProb = opts[0].prob;
         const prevProb = previousOddsRef.current[id];
 
         if (prevProb !== undefined) {
-          const prevVal = parseFloat(prevProb);
-          const diff = Math.abs(currentVal - prevVal);
+          const diff = Math.abs(topProb - prevProb);
 
           if (diff >= ALERT_THRESHOLD) {
             newAlerts[id] = {
-              message: `Sudden change! Yes moved by ${(diff * 100).toFixed(1)}%`,
+              message: `Sudden change! Top option moved by ${(diff * 100).toFixed(1)}%`,
               timestamp: Date.now()
             };
             if (!soundPlayed) {
@@ -115,7 +157,7 @@ function App() {
             }
           }
         }
-        previousOddsRef.current[id] = currentProb;
+        previousOddsRef.current[id] = topProb;
       }
     });
     setAlerts(newAlerts);
@@ -124,14 +166,14 @@ function App() {
   const loadPolyTracked = async () => {
     if (polyTrackedIds.length === 0) return;
     const data = await fetchMarkets(polyTrackedIds);
-    checkAlerts(data, getPolyYesProb, 'slug');
+    checkAlerts(data, getPolyOptions, 'slug');
     setPolyTrackedData(data);
   };
 
   const loadKalshiTracked = async () => {
     if (kalshiTrackedIds.length === 0) return;
     const data = await fetchKalshiMarkets(kalshiTrackedIds);
-    checkAlerts(data, getKalshiYesProb, 'ticker');
+    checkAlerts(data, getKalshiOptions, 'ticker');
     setKalshiTrackedData(data);
   };
 
@@ -226,11 +268,7 @@ function App() {
                 .map((event, idx) => (
                   <div key={`top-${event.id || idx}`} className="market-card compact" style={{ margin: 0 }}>
                     <h3 style={{ fontSize: '1.1rem' }}>#{idx + 1} {event.title}</h3>
-                    <div className="odds-container" style={{ margin: '1rem 0' }}>
-                      <span className="odds-badge odds-yes" style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
-                        {formatProb(getPolyYesProb(event))} Chance
-                      </span>
-                    </div>
+                    <OptionsDisplay options={getPolyOptions(event)} />
                     <span className="volume">Volume: ${(event.volume || 0).toLocaleString()}</span>
                   </div>
                 ))}
@@ -238,7 +276,7 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>🎯 Active Tracker (Polymarket)</h2>
+            <h2>⭐️ Bookmarks (Polymarket)</h2>
             <form className="input-group" onSubmit={handleTrackPoly}>
               <input
                 type="text"
@@ -246,23 +284,23 @@ function App() {
                 value={polyInput}
                 onChange={(e) => setPolyInput(e.target.value)}
               />
-              <button type="submit">Track</button>
+              <button type="submit">Bookmark</button>
             </form>
 
             <div className="tracked-list">
-              {polyTrackedData.length === 0 && <p className="muted">No markets tracked yet.</p>}
+              {polyTrackedData.length === 0 && <p className="muted">No markets bookmarked yet.</p>}
               {polyTrackedData.map(event => {
-                const yesProb = getPolyYesProb(event);
+                const options = getPolyOptions(event);
                 const isAlert = !!alerts[event.slug];
                 return (
                   <div key={event.slug} className={`market-card ${isAlert ? 'alert' : ''}`}>
                     <h3>{event.title}</h3>
-                    <div className="odds-container">
-                      <span className="odds-badge odds-yes">Yes: {formatProb(yesProb)}</span>
+                    <OptionsDisplay options={options} />
+                    <div className="odds-container" style={{ marginTop: '0.5rem', justifyContent: 'flex-end' }}>
                       <button className="remove-btn" onClick={() => {
                         setPolyTrackedIds(prev => prev.filter(id => id !== event.slug));
                         setPolyTrackedData(prev => prev.filter(i => i.slug !== event.slug));
-                      }}>Remove</button>
+                      }}>❌ Remove</button>
                     </div>
                     {isAlert && <div className="alert-message">⚠️ {alerts[event.slug].message}</div>}
                   </div>
@@ -290,11 +328,11 @@ function App() {
                 .map(event => (
                   <div key={event.id} className="market-card">
                     <h3>{event.title}</h3>
-                    <div className="odds-container">
-                      <span className="odds-badge odds-yes">Yes: {formatProb(getPolyYesProb(event))}</span>
+                    <OptionsDisplay options={getPolyOptions(event)} />
+                    <div className="odds-container" style={{ marginTop: '0.5rem', justifyContent: 'flex-end' }}>
                       <button className="add-btn" onClick={() => {
                         if (!polyTrackedIds.includes(event.slug)) setPolyTrackedIds(prev => [...prev, event.slug]);
-                      }}>+ Track</button>
+                      }}>+ Bookmark</button>
                     </div>
                     <span className="volume">Volume: ${(event.volume || 0).toLocaleString()}</span>
                   </div>
@@ -316,11 +354,7 @@ function App() {
                 .map((market, idx) => (
                   <div key={`top-${market.ticker || idx}`} className="market-card compact" style={{ margin: 0 }}>
                     <h3 style={{ fontSize: '1.1rem' }}>#{idx + 1} {market.title}</h3>
-                    <div className="odds-container" style={{ margin: '1rem 0' }}>
-                      <span className="odds-badge odds-yes" style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
-                        {formatProb(getKalshiYesProb(market))} Chance
-                      </span>
-                    </div>
+                    <OptionsDisplay options={getKalshiOptions(market)} />
                     <span className="volume">Volume: ${(market.volume_24h || market.volume || 0).toLocaleString()}</span>
                   </div>
                 ))}
@@ -328,7 +362,7 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>🎯 Active Tracker (Kalshi)</h2>
+            <h2>⭐️ Bookmarks (Kalshi)</h2>
             <form className="input-group" onSubmit={handleTrackKalshi}>
               <input
                 type="text"
@@ -336,23 +370,23 @@ function App() {
                 value={kalshiInput}
                 onChange={(e) => setKalshiInput(e.target.value)}
               />
-              <button type="submit">Track</button>
+              <button type="submit">Bookmark</button>
             </form>
 
             <div className="tracked-list">
-              {kalshiTrackedData.length === 0 && <p className="muted">No markets tracked yet.</p>}
+              {kalshiTrackedData.length === 0 && <p className="muted">No markets bookmarked yet.</p>}
               {kalshiTrackedData.map(market => {
-                const yesProb = getKalshiYesProb(market);
+                const options = getKalshiOptions(market);
                 const isAlert = !!alerts[market.ticker];
                 return (
                   <div key={market.ticker} className={`market-card ${isAlert ? 'alert' : ''}`}>
                     <h3>{market.title}</h3>
-                    <div className="odds-container">
-                      <span className="odds-badge odds-yes">Yes: {formatProb(yesProb)}</span>
+                    <OptionsDisplay options={options} />
+                    <div className="odds-container" style={{ marginTop: '0.5rem', justifyContent: 'flex-end' }}>
                       <button className="remove-btn" onClick={() => {
                         setKalshiTrackedIds(prev => prev.filter(id => id !== market.ticker));
                         setKalshiTrackedData(prev => prev.filter(i => i.ticker !== market.ticker));
-                      }}>Remove</button>
+                      }}>❌ Remove</button>
                     </div>
                     {isAlert && <div className="alert-message">⚠️ {alerts[market.ticker].message}</div>}
                   </div>
@@ -380,11 +414,11 @@ function App() {
                 .map(market => (
                   <div key={market.ticker} className="market-card">
                     <h3>{market.title}</h3>
-                    <div className="odds-container">
-                      <span className="odds-badge odds-yes">Yes: {formatProb(getKalshiYesProb(market))}</span>
+                    <OptionsDisplay options={getKalshiOptions(market)} />
+                    <div className="odds-container" style={{ marginTop: '0.5rem', justifyContent: 'flex-end' }}>
                       <button className="add-btn" onClick={() => {
                         if (!kalshiTrackedIds.includes(market.ticker)) setKalshiTrackedIds(prev => [...prev, market.ticker]);
-                      }}>+ Track</button>
+                      }}>+ Bookmark</button>
                     </div>
                     <span className="volume">Sub-Title: {market.subtitle || 'N/A'}</span>
                   </div>
