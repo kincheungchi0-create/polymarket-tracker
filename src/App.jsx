@@ -51,13 +51,29 @@ function App() {
     return `${(num * 100).toFixed(1)}%`;
   };
 
-  const getPolyYesProb = (market) => {
-    if (market?.markets?.[0]?.outcomePrices) return market.markets[0].outcomePrices[0];
+  const getPolyYesProb = (event) => {
+    try {
+      if (event?.markets?.[0]?.outcomePrices) {
+        return event.markets[0].outcomePrices[0];
+      }
+      if (event?.outcomePrices) {
+        const parsed = JSON.parse(event.outcomePrices);
+        return parsed[0];
+      }
+    } catch (e) {
+      console.error("Parse error for outcomePrices", event.outcomePrices);
+    }
     return null;
   };
 
   const getKalshiYesProb = (market) => {
-    if (market?.yes_bid !== undefined) return (market.yes_bid / 100).toString();
+    let priceCents = market?.yes_bid;
+    if (priceCents === undefined || priceCents === 0) {
+      priceCents = market?.last_price;
+    }
+    if (priceCents !== undefined && priceCents !== null) {
+      return (priceCents / 100).toString();
+    }
     return null;
   };
 

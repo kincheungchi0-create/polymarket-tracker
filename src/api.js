@@ -44,7 +44,7 @@ export const fetchKalshiTrending = async () => {
         const data = await res.json();
         if (data.markets) {
             // Sort by volume descending and take top 20
-            return data.markets.sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 20);
+            return data.markets.sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 20);
         }
         return [];
     } catch (error) {
