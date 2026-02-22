@@ -1,7 +1,7 @@
 export const fetchTrendingMarkets = async () => {
     try {
         // We use the Gamma API to get top active markets
-        const res = await fetch('https://gamma-api.polymarket.com/events?limit=20&active=true&closed=false');
+        const res = await fetch('/api/polymarket/events?limit=20&active=true&closed=false');
         const data = await res.json();
         return data;
     } catch (error) {
@@ -14,8 +14,8 @@ export const fetchMarketById = async (idOrSlug) => {
     try {
         const isId = !isNaN(idOrSlug);
         const url = isId
-            ? `https://gamma-api.polymarket.com/events/${idOrSlug}`
-            : `https://gamma-api.polymarket.com/events?slug=${idOrSlug}`;
+            ? `/api/polymarket/events/${idOrSlug}`
+            : `/api/polymarket/events?slug=${idOrSlug}`;
         const res = await fetch(url);
         const data = await res.json();
         if (Array.isArray(data)) return data[0];

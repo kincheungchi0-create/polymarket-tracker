@@ -10,6 +10,11 @@ export default defineConfig({
         target: 'https://api.elections.kalshi.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/kalshi/, '')
+      },
+      '/api/polymarket': {
+        target: 'https://gamma-api.polymarket.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/polymarket/, '')
       }
     }
   }
