@@ -1,7 +1,7 @@
 export const fetchTrendingMarkets = async () => {
     try {
-        // We use the Gamma API to get top active markets
-        const res = await fetch('/api/polymarket/events?limit=20&active=true&closed=false');
+        // We use the Gamma API to get top active markets (up to 1000)
+        const res = await fetch('/api/polymarket/events?limit=1000&active=true&closed=false');
         const data = await res.json();
         return data;
     } catch (error) {
@@ -40,11 +40,11 @@ export const fetchMarkets = async (ids) => {
 // KALSHI API
 export const fetchKalshiTrending = async () => {
     try {
-        const res = await fetch('/api/kalshi/trade-api/v2/markets?status=open&limit=100');
+        const res = await fetch('/api/kalshi/trade-api/v2/markets?status=open&limit=1000');
         const data = await res.json();
         if (data.markets) {
-            // Sort by volume descending and take top 20
-            return data.markets.sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 20);
+            // Sort by volume descending and return all
+            return data.markets.sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0));
         }
         return [];
     } catch (error) {

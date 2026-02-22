@@ -32,12 +32,14 @@ function App() {
   const [polyTrackedIds, setPolyTrackedIds] = useState([]);
   const [polyTrackedData, setPolyTrackedData] = useState([]);
   const [polyInput, setPolyInput] = useState('');
+  const [polySearch, setPolySearch] = useState('');
 
   // Kalshi State
   const [kalshiTrending, setKalshiTrending] = useState([]);
   const [kalshiTrackedIds, setKalshiTrackedIds] = useState([]);
   const [kalshiTrackedData, setKalshiTrackedData] = useState([]);
   const [kalshiInput, setKalshiInput] = useState('');
+  const [kalshiSearch, setKalshiSearch] = useState('');
 
   // Alerts & History
   const previousOddsRef = useRef({});
@@ -249,21 +251,33 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>🔥 Trending (Polymarket)</h2>
+            <h2>🌍 All Available Markets (Polymarket)</h2>
+            <div className="input-group" style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search markets..."
+                value={polySearch}
+                onChange={(e) => setPolySearch(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
             <div className="trending-list">
-              {polyTrending.length === 0 && <p className="muted">Loading trending markets...</p>}
-              {polyTrending.map(event => (
-                <div key={event.id} className="market-card">
-                  <h3>{event.title}</h3>
-                  <div className="odds-container">
-                    <span className="odds-badge odds-yes">Yes: {formatProb(getPolyYesProb(event))}</span>
-                    <button className="add-btn" onClick={() => {
-                      if (!polyTrackedIds.includes(event.slug)) setPolyTrackedIds(prev => [...prev, event.slug]);
-                    }}>+ Track</button>
+              {polyTrending.length === 0 && <p className="muted">Loading markets...</p>}
+              {polyTrending
+                .filter(event => event.title?.toLowerCase().includes(polySearch.toLowerCase()))
+                .slice(0, 50)
+                .map(event => (
+                  <div key={event.id} className="market-card">
+                    <h3>{event.title}</h3>
+                    <div className="odds-container">
+                      <span className="odds-badge odds-yes">Yes: {formatProb(getPolyYesProb(event))}</span>
+                      <button className="add-btn" onClick={() => {
+                        if (!polyTrackedIds.includes(event.slug)) setPolyTrackedIds(prev => [...prev, event.slug]);
+                      }}>+ Track</button>
+                    </div>
+                    <span className="volume">Volume: ${(event.volume || 0).toLocaleString()}</span>
                   </div>
-                  <span className="volume">Volume: ${(event.volume || 0).toLocaleString()}</span>
-                </div>
-              ))}
+                ))}
             </div>
           </section>
         </div>
@@ -306,21 +320,33 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>🔥 Trending (Kalshi)</h2>
+            <h2>🌍 All Available Markets (Kalshi)</h2>
+            <div className="input-group" style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search markets..."
+                value={kalshiSearch}
+                onChange={(e) => setKalshiSearch(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
             <div className="trending-list">
-              {kalshiTrending.length === 0 && <p className="muted">Loading trending markets...</p>}
-              {kalshiTrending.map(market => (
-                <div key={market.ticker} className="market-card">
-                  <h3>{market.title}</h3>
-                  <div className="odds-container">
-                    <span className="odds-badge odds-yes">Yes: {formatProb(getKalshiYesProb(market))}</span>
-                    <button className="add-btn" onClick={() => {
-                      if (!kalshiTrackedIds.includes(market.ticker)) setKalshiTrackedIds(prev => [...prev, market.ticker]);
-                    }}>+ Track</button>
+              {kalshiTrending.length === 0 && <p className="muted">Loading markets...</p>}
+              {kalshiTrending
+                .filter(market => market.title?.toLowerCase().includes(kalshiSearch.toLowerCase()))
+                .slice(0, 50)
+                .map(market => (
+                  <div key={market.ticker} className="market-card">
+                    <h3>{market.title}</h3>
+                    <div className="odds-container">
+                      <span className="odds-badge odds-yes">Yes: {formatProb(getKalshiYesProb(market))}</span>
+                      <button className="add-btn" onClick={() => {
+                        if (!kalshiTrackedIds.includes(market.ticker)) setKalshiTrackedIds(prev => [...prev, market.ticker]);
+                      }}>+ Track</button>
+                    </div>
+                    <span className="volume">Sub-Title: {market.subtitle || 'N/A'}</span>
                   </div>
-                  <span className="volume">Sub-Title: {market.subtitle || 'N/A'}</span>
-                </div>
-              ))}
+                ))}
             </div>
           </section>
         </div>
