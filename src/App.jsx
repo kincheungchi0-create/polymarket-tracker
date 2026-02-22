@@ -216,6 +216,27 @@ function App() {
 
       {activeTab === 'polymarket' && (
         <div className="dashboard-grid fade-in">
+          <section className="panel" style={{ gridColumn: '1 / -1' }}>
+            <h2>📈 Top 3 Markets by Volume (Highest Chance)</h2>
+            <div className="trending-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              {polyTrending.length === 0 && <p className="muted">Loading...</p>}
+              {[...polyTrending]
+                .sort((a, b) => (b.volume || 0) - (a.volume || 0))
+                .slice(0, 3)
+                .map((event, idx) => (
+                  <div key={`top-${event.id || idx}`} className="market-card compact" style={{ margin: 0 }}>
+                    <h3 style={{ fontSize: '1.1rem' }}>#{idx + 1} {event.title}</h3>
+                    <div className="odds-container" style={{ margin: '1rem 0' }}>
+                      <span className="odds-badge odds-yes" style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
+                        {formatProb(getPolyYesProb(event))} Chance
+                      </span>
+                    </div>
+                    <span className="volume">Volume: ${(event.volume || 0).toLocaleString()}</span>
+                  </div>
+                ))}
+            </div>
+          </section>
+
           <section className="panel">
             <h2>🎯 Active Tracker (Polymarket)</h2>
             <form className="input-group" onSubmit={handleTrackPoly}>
@@ -285,6 +306,27 @@ function App() {
 
       {activeTab === 'kalshi' && (
         <div className="dashboard-grid fade-in">
+          <section className="panel" style={{ gridColumn: '1 / -1' }}>
+            <h2>📈 Top 3 Markets by Volume (Highest Chance)</h2>
+            <div className="trending-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              {kalshiTrending.length === 0 && <p className="muted">Loading...</p>}
+              {[...kalshiTrending]
+                .sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0))
+                .slice(0, 3)
+                .map((market, idx) => (
+                  <div key={`top-${market.ticker || idx}`} className="market-card compact" style={{ margin: 0 }}>
+                    <h3 style={{ fontSize: '1.1rem' }}>#{idx + 1} {market.title}</h3>
+                    <div className="odds-container" style={{ margin: '1rem 0' }}>
+                      <span className="odds-badge odds-yes" style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>
+                        {formatProb(getKalshiYesProb(market))} Chance
+                      </span>
+                    </div>
+                    <span className="volume">Volume: ${(market.volume_24h || market.volume || 0).toLocaleString()}</span>
+                  </div>
+                ))}
+            </div>
+          </section>
+
           <section className="panel">
             <h2>🎯 Active Tracker (Kalshi)</h2>
             <form className="input-group" onSubmit={handleTrackKalshi}>
